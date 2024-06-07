@@ -1,0 +1,304 @@
+import { AboutSlint, HorizontalBox } from "std-widgets.slint";
+export global Theme  {
+    // brushes
+    out property <brush> window-background: #000000;
+    out property <brush> background-regular: #0025FF;
+    out property <brush> background-selected: root.foreground;
+    out property <brush> background-selected-hover: root.background-selected.darker(0.4);
+    out property <brush> foreground: #FFFFFF;
+    out property <brush> foreground-selected: root.background-regular ;
+    out property <brush> foreground-selected-hover: root.foreground-selected.darker(0.4);
+
+    // durations
+    out property <duration> duration-fast: 200ms;
+    out property <duration> duration-regular: 300ms;
+
+    // radius
+    out property <length> radius-regular: 16px;
+
+    // sizes
+    out property <length> size-small: 24px;
+    out property <length> size-regular: 32px;
+    out property <length> size-medium: 45px;
+    out property <length> size-big: 60px;
+
+
+    // spacings
+    out property <length> spacing-regular: 5px;
+    out property <length> spacing-medium: 8px;
+
+    // typo
+    out property <length> font-size-regular: 12px;
+    out property <length> font-size-medium: 28px;
+    out property <int> font-weight-regular: 400;
+    out property <int> font-weight-bold: 900;
+}
+
+export component Label inherits Text {
+    font-size: Theme.font-size-regular;
+    font-weight: Theme.font-weight-regular;
+    color: Theme.foreground;
+}
+export component TitleLabel inherits Text {
+    font-size: Theme.font-size-medium;
+    font-weight: Theme.font-weight-bold;
+}
+export component Card inherits Rectangle {
+    in property <string> title: "";
+    in property <bool> is-selected: false;
+    in property <image> image-source <=> image.source;
+
+    private property <length> spacing: Theme.spacing-medium;
+    private property <length> title-spacing: Theme.spacing-medium;
+    private property <length> title-area-height: Theme.size-medium;
+
+    border-radius: Theme.radius-regular;
+    background: Theme.background-regular;
+    width: Theme.size-medium;
+    height: Theme.size-medium;
+    clip: false;
+
+    states [
+        hover-selected when root.is-selected: {
+            background: Theme.background-selected-hover;
+            image.colorize: Theme.foreground-selected-hover;
+            width: Theme.size-big;
+            height: Theme.size-big;
+            title-label.visible: true;
+        }
+
+        selected when root.is-selected : {
+            background: Theme.background-selected;
+            image.colorize: Theme.foreground-selected;
+            width: Theme.size-big;
+            height: Theme.size-big;
+            title-label.visible: true;
+        }
+     ]
+
+     animate width { duration: Theme.duration-regular; easing: ease-in; }
+     animate height { duration: Theme.duration-regular; easing: ease-in; }
+     animate background { duration: Theme.duration-fast; }
+
+    image := Image {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 80%;
+        height: 80%;
+        colorize: Theme.foreground;
+        animate colorize { duration: Theme.duration-fast; }
+    }
+    title-label := TitleLabel {
+        x: (parent.width - self.width) / 2;
+        y: parent.height;
+        text <=> root.title;
+        visible: false;
+        color: Theme.foreground;
+    }
+}
+export component Carousel inherits FocusScope {
+    in-out property <int> selected-index;
+    in property <length> spacing;
+    in property <length> itemWidth;
+    in property <int> count: 0;
+
+    private property <length> center-x: (root.width - Theme.size-medium) / 2;
+    private property <duration> duration: Theme.duration-regular;
+
+    forward-focus: focus-scope;
+    height: Theme.size-medium;
+
+    focus-scope:= FocusScope {
+        visible: root.visible;
+    }
+
+    Rectangle {
+        visible: root.visible;
+        clip: true;
+        background: transparent;
+
+        Flickable {
+            interactive: false;
+            viewport-x: root.center-x - root.selected-index * (root.itemWidth + root.spacing) - Theme.spacing-medium;
+
+            animate viewport-x { duration: root.duration; easing: ease-in; }
+
+            HorizontalLayout {
+                spacing <=> root.spacing;
+
+                @children
+            }
+        }
+    }
+}
+
+
+component Info {
+    in property <brush> img_colorize;
+    in property <image> logo;
+    in property <int> logow: 16;
+    in property <int> logoh: 16;
+    in property <string> text: "";
+    in property <color> text_color: Colors.black;
+    in property <int> font_size: 22;
+    in property <int> font_weight: 100;
+
+    GridLayout {
+        visible: root.visible;
+        spacing: 5px;
+        logo:=Image {
+            width: logow * 1px;
+            height: logoh * 1px;
+            source: root.logo;
+            image-fit: ImageFit.fill;
+            row: 0;
+            col: 0;
+            colorize: img_colorize;
+            }
+        text:= Text {
+            visible: root.visible;
+            text: root.text;
+            color: text_color;
+            font-size: font_size * 1px;
+            font-weight: font_weight;
+            vertical-alignment: TextVerticalAlignment.top;
+            horizontal-alignment: TextHorizontalAlignment.left;
+            wrap: word-wrap;
+            row: 1;
+            col: 0;
+        }
+
+    }
+
+}
+
+export component MainWindow inherits Window {
+    private property <[{ title: string, image: image}]> navigation-items: [
+       { title: "Profile", image: @image-url("image/profile.svg")},
+       { title: "Home", image: @image-url("image/home.svg") },
+       { title: "Debug", image: @image-url("image/debug.svg") },
+       { title: "About", image: @image-url("image/about.svg") },
+    ];
+    background: Theme.window-background;
+    padding: Theme.spacing-regular;
+    forward-focus: carousel;
+    Rectangle {
+        visible: carousel.visible;
+        Image {
+            source: @image-url("image/bg.png");
+            image-fit: fill;
+        }
+    }
+    private property <int> selected-index: 1;
+    public function select_next(){
+        if (carousel.visible != true){
+            return 1;
+        }
+        if (root.selected-index == root.navigation-items.length -1 ){
+             root.selected-index = 0
+        }
+        else{
+            root.selected-index = root.selected-index + 1
+        }
+    }
+    public function select_prev(){
+        if (carousel.visible != true){
+            return 1;
+        }
+        if (root.selected-index == 0){
+             root.selected-index = root.navigation-items.length - 1
+        }
+        else{
+            root.selected-index = root.selected-index - 1
+        }
+    }
+
+    public function selected() -> int{
+        return root.selected-index;
+    }
+    public function get_visible(item: string) -> bool{
+        if (item == "info"){
+            return info.visible;
+        }
+        else if (item == "carousel") {
+            return carousel.visible;
+        }
+        else if (item == "debug") {
+            return debug.visible;
+        }
+        else
+        {
+            return about.visible;
+        }
+
+    }
+    public function set_visible(item: string, visible: bool) {
+        if (item == "info"){
+            info.visible = visible;
+        }
+        else if (item == "carousel") {
+            carousel.visible = visible;
+        }
+        else if (item == "debug") {
+            debug.visible  = visible;
+        }
+        else {
+            about.visible = visible;
+        }
+    }
+
+    public function set_info_text(text: string, color: color, font_size: int, font_weight: int){
+        info.text = text;
+        info.text_color = color;
+        info.font_size = font_size;
+        info.font_weight = font_weight;
+    }
+
+    public function set_debug_text(text: string, color: color, font_size: int, font_weight: int){
+        debug.text = text;
+        debug.text_color = color;
+        debug.font_size = font_size;
+        debug.font_weight = font_weight;
+    }
+
+    carousel := Carousel {
+        visible: true;
+        y: (root.height - self.height) / 2;
+        height: 100%;
+        itemWidth: Theme.size-medium;
+        count: root.navigation-items.length;
+        selected-index <=> root.selected-index;
+        spacing: Theme.spacing-regular;
+        for item[index] in root.navigation-items : Card {
+            is-selected: index == root.selected-index;
+            title: item.title;
+            image-source: item.image;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+    info:=Info{
+        width: parent.width;
+        height: parent.height;
+        visible: false;
+        logo: @image-url("image/about.svg");
+        img_colorize: Theme.background-regular;
+        logow: 20;
+        logoh: 20;
+    }
+
+    debug:=Info{
+        width: parent.width;
+        height: parent.height;
+        visible: false;
+        logo: @image-url("image/debug.svg");
+        logow: 20;
+        logoh: 20;
+        img_colorize: Theme.background-regular;
+    }
+    about := AboutSlint {
+        width: parent.width;
+        height: parent.height;
+        visible: false;
+    }
+
+}

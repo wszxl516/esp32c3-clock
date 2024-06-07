@@ -1,0 +1,10 @@
+{
+  "wifi": [
+    {
+      "ssid": "Pixel7",
+      "password": "12345678"
+    }
+  ],
+  "sync_time_interval": 3600,
+  "date_fixed_offset": 28800
+}
