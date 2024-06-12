@@ -12,7 +12,8 @@ pub struct Wifi {
 pub struct Config {
     pub wifi: Vec<Wifi>,
     pub sync_time_interval: u32,
-    pub date_fixed_offset: i32
+    pub date_fixed_offset: i32,
+    pub ntp_server: String
 }
 impl Config{
     pub fn from_partition() -> Option<Config>{

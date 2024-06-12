@@ -6,5 +6,6 @@
     }
   ],
   "sync_time_interval": 3600,
-  "date_fixed_offset": 28800
+  "date_fixed_offset": 28800,
+  "ntp_server": "0.asia.pool.ntp.org"
 }

@@ -30,8 +30,7 @@ fn setup_wifi(
     let mut wifi = BlockingWifi::wrap(EspWifi::new(modem, sys_loop.clone(), Some(nvs))?, sys_loop)?;
     let accounts = match CONFIG.deref() {
         None => {
-            error!("fetch wifi accounts from partition failed");
-            return Ok(wifi)
+            panic!("fetch wifi accounts from partition failed");
         }
         Some(config) => {
             &config.wifi
@@ -64,22 +63,29 @@ fn setup_wifi(
     Ok(wifi)
 }
 
+static mut WIFI: Option<BlockingWifi<EspWifi>> = None;
 pub fn setup_network(
     modem: Modem,
     sys_loop: EspEventLoop<System>,
     nvs: EspNvsPartition<NvsDefault>,
 ) -> anyhow::Result<()> {
-    let wifi = setup_wifi(modem, sys_loop.clone(), nvs.clone())?;
-    info!("{:?}", wifi.wifi().sta_netif().get_ip_info()?);
+    let wifi = setup_wifi(modem, sys_loop.clone(), nvs.clone()).expect("setup_wifi failed");
+    info!("{:?}", wifi.wifi().sta_netif().get_ip_info().unwrap());
+    unsafe {WIFI.replace(wifi)};
     thread::Builder::new()
         .stack_size(1024 * 16)
         .name("ntp-update".into())
         .spawn(move || {
+            match sync_time() {
+                Ok(_) => info!("ntp sync time succeed!"),
+                Err(e) => error!("ntp sync time failed! {}", e),
+            }
             let mut interval = 0u32;
             let sync_time_interval = match CONFIG.deref() {
                 None => 3600,
                 Some(config) => config.sync_time_interval,
             };
+
             loop {
                 if interval >= sync_time_interval {
                     match sync_time() {
@@ -99,8 +105,12 @@ pub fn setup_network(
 
 const CLOCK_MONOTONIC: clockid_t = 1;
 pub fn sync_time() -> anyhow::Result<()> {
+    let ntp_server = match CONFIG.deref() {
+        None => "ntp0.ntp-servers.net",
+        Some(config) => &*config.ntp_server,
+    };
     let client = NtpClient::new();
-    let res = client.request("0.cn.pool.ntp.org")?;
+    let res = client.request(ntp_server)?;
     let seconds = res.unix_time.clone();
     let t = timespec {
         tv_sec: seconds as time_t,

@@ -1,7 +1,8 @@
-use byteorder::{BigEndian, ReadBytesExt};
-use chrono::prelude::*;
 use std::io::{Cursor, Seek, SeekFrom};
 use std::net::UdpSocket;
+
+use byteorder::{BigEndian, ReadBytesExt};
+use chrono::prelude::*;
 
 pub struct NtpClient;
 impl NtpClient {
