@@ -1,13 +1,11 @@
 use std::sync::mpsc::Sender;
 use std::thread::sleep;
 use std::time::Duration;
-
 use button_driver::{Button, ButtonConfig, Mode};
 use esp_idf_hal::gpio::PinDriver;
 use esp_idf_hal::sys::{esp, gpio_config, gpio_config_t};
 use esp_idf_svc::hal::gpio::IOPin;
 use log::debug;
-
 use crate::utils::state::{Btn, State};
 
 pub fn button_state(btn0_pin: impl IOPin, btn1_pin: impl IOPin, sender: Sender<State>) -> anyhow::Result<()>{
@@ -19,6 +17,7 @@ pub fn button_state(btn0_pin: impl IOPin, btn1_pin: impl IOPin, sender: Sender<S
 
     let mut select_btn = Button::new(PinDriver::input(btn0_pin)?, config);
     let mut ok_btn = Button::new(PinDriver::input(btn1_pin)?, config);
+
 
     {
         // this config will work

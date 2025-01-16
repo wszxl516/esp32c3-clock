@@ -56,19 +56,52 @@ macro_rules! min_to_angle {
         ($value as f32 / 60.0) * 2.0 * PI
     };
 }
-pub struct Clock<D: DrawTarget<Color = Bgr565>> {
+
+#[derive(Debug, Clone, Copy)]
+pub struct DateCache{
+    pub year: u32,
+    pub month: u32,
+    pub day: u32,
+    pub hour: u32,
+    pub minute: u32,
+    pub second: u32
+}
+impl Default for DateCache {
+    fn default() -> Self {
+        Self { year: 0, month: 0, day: 0, hour: 25, minute: 60, second: 60 }
+    }
+}
+impl From<DateTime<FixedOffset>> for DateCache {
+    fn from(value: DateTime<FixedOffset>) -> Self {
+        DateCache { year: value.year() as u32, month: value.month(), day: value.day(), hour: value.hour(), minute: value.minute(), second: value.second() }
+    }
+}
+impl DateCache {
+    pub fn update(&mut self, value: &DateTime<FixedOffset> ){
+        self.year = value.year() as u32; 
+        self.month = value.month(); 
+        self.day = value.day(); 
+        self.hour = value.hour(); 
+        self.minute = value.minute(); 
+        self.second = value.second()
+    }
+}
+
+pub struct Clock<'a, D: DrawTarget<Color = Bgr565>> {
     width: u32,
     height: u32,
     face: Circle,
-    text: [u32; 6],
+    text: DateCache,
     size: u32,
     bg_color: Bgr565,
     fg_color: Bgr565,
     date_fixed_offset: i32,
+    text_font: MonoTextStyle<'a, Bgr565>,
+    text_base_position: u32,
     _d: PhantomData<D>,
 
 }
-impl<D: DrawTarget<Color = Bgr565>> Clock<D>
+impl<D: DrawTarget<Color = Bgr565>> Clock<'_, D>
 {
     pub fn new(width: u32, height: u32, size: u32, bg: Bgr565, fg: Bgr565) -> Self {
         let face = Circle::with_center(
@@ -79,15 +112,18 @@ impl<D: DrawTarget<Color = Bgr565>> Clock<D>
             None => 0,
             Some(config) => config.date_fixed_offset,
         };
+        let text_font = MonoTextStyle::new(&FONT_8X13, fg);
         Self {
             width,
             height,
             face,
-            text: [0; 6],
+            text: DateCache::default(),
             size,
             bg_color: bg,
             fg_color: fg,
             date_fixed_offset,
+            text_font,
+            text_base_position: (width - text_font.font.character_size.width * 8) / 2,
             _d: Default::default(),
         }
     }
@@ -138,11 +174,10 @@ impl<D: DrawTarget<Color = Bgr565>> Clock<D>
         color: Bgr565,
     ) -> anyhow::Result<(), D::Error>
     {
-        let old_value = self.text[3 + hand.usize()];
-        let stroke = match hand {
-            Hand::Second => 1,
-            Hand::Minute => 2,
-            Hand::Hour => 2,
+        let (stroke, old_value) = match hand {
+            Hand::Second => (1, self.text.second),
+            Hand::Minute => (2, self.text.minute),
+            Hand::Hour => (2, self.text.hour),
         };
         let angle = match hand {
             Hand::Hour => hour_to_angle!(value),
@@ -179,11 +214,12 @@ impl<D: DrawTarget<Color = Bgr565>> Clock<D>
         date: &DateTime<FixedOffset>,
     ) -> anyhow::Result<(), D::Error>
     {
-        let text_font = MonoTextStyle::new(&FONT_8X13, self.fg_color);
+        let text_font = self.text_font;
+        let base_position =  self.text_base_position;
+        let font_width = text_font.font.character_size.width;
         let date = date.naive_local();
-        let (ymd, hms) = self.text.split_at(3);
-        if hms != [date.hour(), date.minute(), date.second()] {
-            let time_str = format!("{}", date.format("%H:%M:%S"));
+        if self.text.second != date.second() {
+            let time_str = format!("{}", date.format("%S"));
             let mut time_text = Text::with_text_style(
                 &time_str,
                 Point::zero(),
@@ -194,7 +230,49 @@ impl<D: DrawTarget<Color = Bgr565>> Clock<D>
                     .build(),
             );
             time_text.translate_mut(Point::new(
-                ((self.width - time_text.bounding_box().size.width) / 2) as i32,
+                (base_position + 6 * font_width)  as i32,
+                time_text.bounding_box().size.height as i32,
+            ));
+            let time_text_dimensions = time_text.bounding_box();
+            Rectangle::new(time_text_dimensions.top_left, time_text_dimensions.size)
+                .into_styled(PrimitiveStyle::with_fill(self.bg_color))
+                .draw(target)?;
+            time_text.draw(target)?;
+        }
+        if self.text.minute != date.minute() {
+            let time_str = format!("{}", date.format("%M:"));
+            let mut time_text = Text::with_text_style(
+                &time_str,
+                Point::zero(),
+                text_font,
+                TextStyleBuilder::new()
+                    .alignment(Alignment::Left)
+                    .baseline(Baseline::Alphabetic)
+                    .build(),
+            );
+            time_text.translate_mut(Point::new(
+                (base_position + 3 * font_width)  as i32,
+                time_text.bounding_box().size.height as i32,
+            ));
+            let time_text_dimensions = time_text.bounding_box();
+            Rectangle::new(time_text_dimensions.top_left, time_text_dimensions.size)
+                .into_styled(PrimitiveStyle::with_fill(self.bg_color))
+                .draw(target)?;
+            time_text.draw(target)?;
+        }
+        if self.text.hour != date.hour() {
+            let time_str = format!("{}", date.format("%H:"));
+            let mut time_text = Text::with_text_style(
+                &time_str,
+                Point::zero(),
+                text_font,
+                TextStyleBuilder::new()
+                    .alignment(Alignment::Left)
+                    .baseline(Baseline::Alphabetic)
+                    .build(),
+            );
+            time_text.translate_mut(Point::new(
+                (base_position)  as i32,
                 time_text.bounding_box().size.height as i32,
             ));
             let time_text_dimensions = time_text.bounding_box();
@@ -217,27 +295,24 @@ impl<D: DrawTarget<Color = Bgr565>> Clock<D>
             ((self.width - date_text.bounding_box().size.width) / 2) as i32,
             (self.width - date_text.bounding_box().size.height / 2) as i32,
         ));
-        if ymd != [date.year() as u32, date.month(), date.day()] {
+        if [self.text.year, self.text.month, self.text.day] != [date.year() as u32, date.month(), date.day()] {
             let date_text_dimensions = date_text.bounding_box();
             Rectangle::new(date_text_dimensions.top_left, date_text_dimensions.size)
                 .into_styled(PrimitiveStyle::with_fill(self.bg_color))
                 .draw(target)?;
-        }
-        else {
             date_text.draw(target)?;
         }
         Ok(())
     }
     pub fn update(&mut self, display: &mut D) -> anyhow::Result<(), D::Error>
     {
-
         let date = Local::now().with_timezone(&FixedOffset::east_opt(self.date_fixed_offset).unwrap());
         self.draw_face(display, self.fg_color)?;
         self.draw_hand(display, date.hour(), -20, Hand::Hour, Bgr565::RED)?;
         self.draw_hand(display, date.minute(), -15, Hand::Minute, Bgr565::GREEN)?;
         self.draw_hand(display, date.second(), -10, Hand::Second, Bgr565::BLUE)?;
         self.draw_text(display, &date)?;
-        self.text = [date.year() as u32 ,date.month(), date.day(), date.hour(), date.minute(), date.second()];
+        self.text.update(&date);
         Ok(())
     }
 }

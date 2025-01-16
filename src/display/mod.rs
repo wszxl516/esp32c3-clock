@@ -33,9 +33,9 @@ pub fn setup_display(
 ) -> anyhow::Result<ST7735<impl SpiDevice, impl OutputPin, impl OutputPin>> {
     let sdi = Option::<Gpio0>::None;
     let driver_config = DriverConfig::new()
-        .dma(Dma::Auto((DISPLAY_WIDTH * DISPLAY_HEIGHT) as usize));
+        .dma(Dma::Auto((DISPLAY_WIDTH) as usize));
     let spi_config = SpiConfig::new()
-        .baudrate(40.MHz().into())
+        .baudrate(60.MHz().into())
         .write_only(true)
         .data_mode(MODE_0);
     let spi =

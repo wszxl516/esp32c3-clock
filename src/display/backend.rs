@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, UNIX_EPOCH};
-
 use embedded_graphics_core::geometry::{OriginDimensions, Point, Size};
 use embedded_graphics_core::pixelcolor::{Bgr565, Rgb565};
 use embedded_graphics_core::pixelcolor::raw::RawU16;

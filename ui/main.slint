@@ -34,16 +34,11 @@ export global Theme  {
     out property <int> font-weight-bold: 900;
 }
 
-export component Label inherits Text {
-    font-size: Theme.font-size-regular;
-    font-weight: Theme.font-weight-regular;
-    color: Theme.foreground;
-}
-export component TitleLabel inherits Text {
+component TitleLabel inherits Text {
     font-size: Theme.font-size-medium;
     font-weight: Theme.font-weight-bold;
 }
-export component Card inherits Rectangle {
+component Card inherits Rectangle {
     in property <string> title: "";
     in property <bool> is-selected: false;
     in property <image> image-source <=> image.source;
@@ -96,7 +91,7 @@ export component Card inherits Rectangle {
         color: Theme.foreground;
     }
 }
-export component Carousel inherits FocusScope {
+component Carousel inherits FocusScope {
     in-out property <int> selected-index;
     in property <length> spacing;
     in property <length> itemWidth;
@@ -175,7 +170,7 @@ component Info {
 export component MainWindow inherits Window {
     private property <[{ title: string, image: image}]> navigation-items: [
        { title: "Profile", image: @image-url("image/profile.svg")},
-       { title: "Home", image: @image-url("image/home.svg") },
+       { title: "Clock", image: @image-url("image/clock.svg") },
        { title: "Debug", image: @image-url("image/debug.svg") },
        { title: "About", image: @image-url("image/about.svg") },
     ];
